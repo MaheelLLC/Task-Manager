@@ -5,7 +5,7 @@ def read_file(file_name : str) -> tuple:
         # read from the json file and retrieve task_data
         with open(file_name, mode='r', encoding='utf-8') as file:
             task_data = json.load(file)
-    except (FileNotFoundError, json.JSONDecodeError):
+    except FileNotFoundError:
         # structure an empty task data structure
         task_data = {
             'next_id' : 1,
@@ -105,8 +105,13 @@ def display_task_manager():
 
 def main():
     file_name = 'tasks.json'
-    tasks, next_id = read_file(file_name)
     user_input = 0
+
+    try:
+        tasks, next_id = read_file(file_name)
+    except json.JSONDecodeError as e:
+        print(f"The JSON file is corrupted.\n{e}")
+        return
 
     display_task_manager()
 
