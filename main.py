@@ -5,7 +5,7 @@ def read_file(file_name : str) -> tuple:
         # read from the json file and retrieve task_data
         with open(file_name, mode='r', encoding='utf-8') as file:
             task_data = json.load(file)
-    except FileNotFoundError:
+    except (FileNotFoundError, json.JSONDecodeError):
         # structure an empty task data structure
         task_data = {
             'next_id' : 1,
@@ -53,6 +53,8 @@ def edit_task(
             tasks[index]['title'] = new_title
             break
 
+    print(f'Task {edit_id} edited successfully!')
+
     return tasks
 
 def complete_task(
@@ -86,14 +88,10 @@ def write_file(
         file_name : str, 
         tasks : list, 
         next_id : int,
-        existing_ids : list,
-        incomplete_ids : list
 ):
     task_data = {
         'next_id' : next_id,
         'tasks' : tasks,
-        'existing_ids' : existing_ids,
-        'incomplete_ids' : incomplete_ids,
     }
     # write the updated tasks back to the file
     with open(file_name, mode='w', encoding='utf-8') as file:
@@ -107,7 +105,7 @@ def display_task_manager():
 
 def main():
     file_name = 'tasks.json'
-    tasks, next_id, existing_ids, incomplete_ids = read_file(file_name)
+    tasks, next_id = read_file(file_name)
     user_input = 0
 
     display_task_manager()
@@ -126,12 +124,9 @@ def main():
             description = ''
 
             while not description:
-                description = input('Task description: ')
+                description = input('Task description: ').strip()
                 if not description:
                     print('Please enter a valid description.')
-
-            existing_ids.append(next_id)
-            incomplete_ids.append(next_id)
 
             tasks, next_id = add_task(tasks=tasks, next_id=next_id, 
                                       title=description)
@@ -151,6 +146,7 @@ def main():
             while task_id < 0:
                 try:
                     task_id = int(input('Enter task ID: '))
+                    existing_ids = [task['id'] for task in tasks]
                     if task_id not in existing_ids:
                         # print('Please enter an existing task id.')
                         raise ValueError
@@ -167,32 +163,32 @@ def main():
                 new_description = ''
 
                 while not new_description:
-                    new_description = input('Enter new description: ')
+                    new_description = input('Enter new description: ').strip()
                     if not new_description:
                         print('Please enter a valid description.')
 
                 tasks = edit_task(tasks, task_id, new_description)
+                continue
+
+            incomplete_ids = [task['id'] for task in tasks if not task['completed']]
 
             # if the user wants to complete the task
-            elif user_input == 4:
+            if user_input == 4:
                 if task_id not in incomplete_ids:
                     print(f'Task {task_id} is already complete.')
                     continue
                 tasks = complete_task(tasks, task_id)
-                incomplete_ids.remove(task_id)
 
             # if the user wants to delete the task
-            else:
+            elif user_input == 5:
                 tasks = delete_task(tasks, task_id)
 
-                existing_ids.remove(task_id)
                 if task_id in incomplete_ids:
                     incomplete_ids.remove(task_id)
 
     # user has exited
     print('Goodbye!')
-
-    write_file(file_name, tasks, next_id, existing_ids, incomplete_ids)
+    write_file(file_name, tasks, next_id)
 
 if __name__ == '__main__':
     main()
