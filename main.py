@@ -10,8 +10,6 @@ def read_file(file_name : str) -> tuple:
         task_data = {
             'next_id' : 1,
             'tasks' : [],
-            'existing_ids' : [],
-            'incomplete_ids' : [],
         }
         # dump the empty task data into the newly created json file
         with open(file_name, mode='w', encoding='utf-8') as file:
@@ -19,10 +17,8 @@ def read_file(file_name : str) -> tuple:
 
     next_id = task_data['next_id']
     tasks = task_data['tasks']
-    existing_ids = task_data['existing_ids']
-    incomplete_ids = task_data['incomplete_ids']
 
-    return tasks, next_id, existing_ids, incomplete_ids
+    return tasks, next_id
 
 def add_task(
         tasks : list, 
