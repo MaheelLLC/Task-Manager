@@ -1,4 +1,5 @@
 import json
+import requests
 
 def read_file(file_name : str) -> tuple:
     try:
@@ -103,9 +104,38 @@ def display_task_manager():
     print('5. Delete Task\n6. Exit')
     print('==============================')
 
+def import_tasks_from_api(
+        api_url : str, 
+        tasks : list, 
+        next_id : int
+):
+    # retrieve data from api
+    response = requests.get(api_url)
+    # check if it was successful
+    response.raise_for_status()
+    parsed = response.json()
+
+    first_five = []
+    for todo in parsed:
+        if todo["completed"] == False:
+            updated_todo = {
+                "id" : next_id,
+                "title" : todo["title"],
+                "completed" : False
+            }
+            first_five.append(updated_todo)
+            next_id += 1
+            if len(first_five) == 5:
+                break
+
+    tasks += first_five
+    print(f"{len(first_five)} tasks successfully added!")
+    return tasks, next_id
+
 def main():
     file_name = 'tasks.json'
     user_input = 0
+    api_url = "https://jsonplaceholder.typicode.com/todos"
 
     try:
         tasks, next_id = read_file(file_name)
@@ -115,11 +145,11 @@ def main():
 
     display_task_manager()
 
-    while user_input != 6:
+    while user_input != 7:
         try:
             user_input = int(input('\nEnter your choice: '))
-            if user_input < 1 or user_input > 6:
-                print('Please enter a valid choice ranging from 1 to 6')
+            if user_input < 1 or user_input > 7:
+                print('Please enter a valid choice ranging from 1 to 7')
                 continue
         except ValueError:
             print('Please enter a number representing the choice (ex. 1)')
@@ -190,7 +220,15 @@ def main():
 
                 if task_id in incomplete_ids:
                     incomplete_ids.remove(task_id)
-
+        else:
+            try:
+                tasks, next_id = import_tasks_from_api(api_url, tasks, next_id)
+            except requests.exceptions.Timeout as e:
+                print(f"Request timed out: {e}")
+            except requests.exceptions.JSONDecodeError as e:
+                print(f"Failed to parse JSON: {e}")
+            except requests.exceptions.RequestException as e:
+                print(f"Failed request: {e}")
     # user has exited
     print('Goodbye!')
     write_file(file_name, tasks, next_id)
