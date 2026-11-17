@@ -6,6 +6,8 @@ def read_file(file_name : str) -> tuple:
         # read from the json file and retrieve task_data
         with open(file_name, mode='r', encoding='utf-8') as file:
             task_data = json.load(file)
+        validate_task_data(task_data)
+
     except FileNotFoundError:
         # structure an empty task data structure
         task_data = {
@@ -14,12 +16,33 @@ def read_file(file_name : str) -> tuple:
         }
         # dump the empty task data into the newly created json file
         with open(file_name, mode='w', encoding='utf-8') as file:
-            json.dump(task_data, file, indent=4)
-
+            json.dump(task_data, file, indent=4)      
+        
     next_id = task_data['next_id']
     tasks = task_data['tasks']
 
     return tasks, next_id
+
+def validate_task_data(task_data):
+    if not isinstance(task_data, dict):
+        raise Exception(f"Task data is not a dict. It is a {type(task_data)}")
+    
+    if 'next_id' not in task_data:
+        raise Exception(f"next_id is not in the JSON file.")
+    next_id = task_data['next_id']
+    if type(next_id) != int or next_id < 1:
+        raise Exception(f"next_id is invalid: {next_id}")
+    
+    if 'tasks' not in task_data or type(task_data['tasks']) != list:
+        raise Exception(f"tasks is not in the JSON file.")
+    
+    for task in task_data['tasks']:
+        if 'id' not in task or type(task['id']) != int:
+            raise Exception(f"id is invalid for Task: {task}")
+        if 'title' not in task or type(task['title']) != str:
+            raise Exception(f"title is invalid for Task: {task}")
+        if 'completed' not in task or type(task['completed']) != bool:
+            raise Exception(f"completed is invalid for Task: {task}")
 
 def add_task(
         tasks : list, 
@@ -101,7 +124,7 @@ def write_file(
 def display_task_manager():
     print('\n======== TASK MANAGER ========')
     print('1. Add Task\n2. View Tasks\n3. Edit Task\n4. Complete Task')
-    print('5. Delete Task\n6. Exit')
+    print('5. Delete Task\n6. Import Tasks from API\n7. Exit')
     print('==============================')
 
 def import_tasks_from_api(
@@ -110,16 +133,20 @@ def import_tasks_from_api(
         next_id : int
 ):
     # retrieve data from api
-    response = requests.get(api_url)
+    response = requests.get(api_url, timeout=10)
     # check if it was successful
     response.raise_for_status()
     parsed = response.json()
 
     first_five = []
+    existing_api_ids = {
+        task["api_id"] for task in tasks if "api_id" in task
+    }
     for todo in parsed:
-        if todo["completed"] == False:
+        if todo["completed"] == False and todo["id"] not in existing_api_ids:
             updated_todo = {
                 "id" : next_id,
+                "api_id" : todo['id'],
                 "title" : todo["title"],
                 "completed" : False
             }
@@ -141,6 +168,9 @@ def main():
         tasks, next_id = read_file(file_name)
     except json.JSONDecodeError as e:
         print(f"The JSON file is corrupted.\n{e}")
+        return
+    except Exception as e:
+        print(e)
         return
 
     display_task_manager()
@@ -220,7 +250,7 @@ def main():
 
                 if task_id in incomplete_ids:
                     incomplete_ids.remove(task_id)
-        else:
+        elif user_input == 6:
             try:
                 tasks, next_id = import_tasks_from_api(api_url, tasks, next_id)
             except requests.exceptions.Timeout as e:
